@@ -52,6 +52,18 @@ if [ "$corrupted" -ne "1" ];then
     exit 1
 fi
 
+# backup full with ratelimit
+echo "backup start to test lock file"
+run_br --pd $PD_ADDR backup full -s "local://$TEST_DIR/$DB/lock" --ratelimit 1 --ratelimit-unit 1 --concurrency 4 &
+
+backup_fail=0
+echo "another backup start expect to fail due to last backup add a lockfile"
+run_br --pd $PD_ADDR backup full -s "local://$TEST_DIR/$DB/lock" --ratelimit 1 --ratelimit-unit 1 --concurrency 4 || backup_fail=1
+if [ "$backup_fail" -ne "1" ];then
+    echo "TEST: [$TEST_NAME] test check max backup ts failed!"
+    exit 1
+fi
+
 run_sql "DROP DATABASE $DB;"
 
 # Test version
